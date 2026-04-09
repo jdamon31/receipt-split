@@ -1,4 +1,5 @@
 import { generateText, Output } from 'ai'
+import { google } from '@ai-sdk/google'
 import { z } from 'zod'
 
 const ReceiptSchema = z.object({
@@ -14,14 +15,14 @@ const ReceiptSchema = z.object({
 
 export type ParsedReceipt = z.infer<typeof ReceiptSchema>
 
-export async function parseReceipt(imageUrl: string): Promise<ParsedReceipt> {
+export async function parseReceipt(imageData: string): Promise<ParsedReceipt> {
   const result = await generateText({
-    model: 'openai/gpt-5.4',
+    model: google('gemini-2.0-flash'),
     output: Output.object({ schema: ReceiptSchema }),
     messages: [{
       role: 'user',
       content: [
-        { type: 'image', image: imageUrl },
+        { type: 'image', image: imageData },
         {
           type: 'text',
           text: 'Extract every line item with name and price from this receipt. Also extract subtotal, tax, and tip if visible. Return null for values not present. Prices should be numbers in dollars (e.g. 12.99 not "$12.99").',
