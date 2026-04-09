@@ -16,11 +16,16 @@ export async function POST(
   const file = formData.get('image') as File | null
   if (!file) return NextResponse.json({ error: 'No image provided' }, { status: 400 })
 
-  // Upload to Vercel Blob
+  // Read file bytes for OCR (works regardless of blob access setting)
+  const bytes = await file.arrayBuffer()
+  const base64 = Buffer.from(bytes).toString('base64')
+  const dataUrl = `data:${file.type};base64,${base64}`
+
+  // Upload to Vercel Blob for display in the review step
   const blob = await put(`receipts/${id}-${nanoid(4)}`, file, { access: 'public' })
 
-  // Parse with OCR
-  const parsed = await parseReceipt(blob.url)
+  // Parse with OCR using raw image data (not the URL)
+  const parsed = await parseReceipt(dataUrl)
 
   // Build receipt items
   const items = parsed.items.map(item => ({
