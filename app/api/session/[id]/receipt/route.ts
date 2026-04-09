@@ -22,10 +22,24 @@ export async function POST(
   const dataUrl = `data:${file.type};base64,${base64}`
 
   // Upload to Vercel Blob for display in the review step
-  const blob = await put(`receipts/${id}-${nanoid(4)}`, file, { access: 'public' })
+  let blobUrl: string | undefined
+  try {
+    const blob = await put(`receipts/${id}-${nanoid(4)}`, file, { access: 'public' })
+    blobUrl = blob.url
+  } catch (err) {
+    console.error('Blob upload failed:', err)
+    // Continue without image preview — OCR can still run
+  }
 
   // Parse with OCR using raw image data (not the URL)
-  const parsed = await parseReceipt(dataUrl)
+  let parsed
+  try {
+    parsed = await parseReceipt(dataUrl)
+  } catch (err) {
+    console.error('OCR failed:', err)
+    const message = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: `OCR failed: ${message}` }, { status: 500 })
+  }
 
   // Build receipt items
   const items = parsed.items.map(item => ({
@@ -38,7 +52,7 @@ export async function POST(
   const subtotal = parsed.subtotal ?? items.reduce((s, i) => s + i.price * i.quantity, 0)
 
   session.receipt = {
-    imageUrl: blob.url,
+    imageUrl: blobUrl,
     items,
     subtotal,
     tax: parsed.tax ?? 0,

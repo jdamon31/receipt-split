@@ -11,6 +11,7 @@ export default function ScanPage() {
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview] = useState<string | null>(null)
   const [file, setFile] = useState<File | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const handleFile = (f: File) => {
@@ -27,9 +28,16 @@ export default function ScanPage() {
   const submit = async () => {
     if (!file) return
     setUploading(true)
+    setError(null)
     const form = new FormData()
     form.append('image', file)
-    await fetch(`/api/session/${id}/receipt`, { method: 'POST', body: form })
+    const res = await fetch(`/api/session/${id}/receipt`, { method: 'POST', body: form })
+    const data = await res.json()
+    if (!res.ok) {
+      setError(data.error ?? 'Something went wrong. Please try again.')
+      setUploading(false)
+      return
+    }
     router.push(`/session/${id}/review`)
   }
 
@@ -69,6 +77,10 @@ export default function ScanPage() {
           onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
         />
       </div>
+
+      {error && (
+        <p className="text-sm text-destructive bg-destructive/10 rounded-xl px-4 py-3">{error}</p>
+      )}
 
       {file && (
         <Button
