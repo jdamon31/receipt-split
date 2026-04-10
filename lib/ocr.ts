@@ -6,7 +6,7 @@ const ReceiptSchema = z.object({
   items: z.array(z.object({
     name: z.string(),
     price: z.number(),
-    quantity: z.number().default(1),
+    quantity: z.number(),
   })),
   subtotal: z.number().nullable(),
   tax: z.number().nullable(),
