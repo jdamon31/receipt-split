@@ -6,7 +6,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const { name } = await req.json()
+  const { name, hostToken } = await req.json()
 
   if (!name?.trim()) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 })
@@ -17,7 +17,12 @@ export async function POST(
 
   const participant = buildParticipant(name, session.participants.length)
   session.participants.push(participant)
-  await setSession(session)
 
+  // If this is the host joining for the first time, update hostId to their real participant id
+  if (hostToken && hostToken === session.hostId) {
+    session.hostId = participant.id
+  }
+
+  await setSession(session)
   return NextResponse.json({ participant })
 }

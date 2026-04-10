@@ -25,7 +25,7 @@ export async function parseReceipt(imageData: string): Promise<ParsedReceipt> {
         { type: 'image', image: imageData },
         {
           type: 'text',
-          text: 'Extract every line item with name and price from this receipt. Also extract subtotal, tax, and tip if visible. Return null for values not present. Prices should be numbers in dollars (e.g. 12.99 not "$12.99").',
+          text: 'Extract every line item from this receipt. For each item return: name, the UNIT price (price for one single item, not the line total), and quantity. If an item has no explicit quantity, use 1. Also extract subtotal, tax, and tip totals if visible (return null if not present). All prices must be plain numbers in dollars with no $ sign (e.g. 12.99 not "$12.99").',
         },
       ],
     }],

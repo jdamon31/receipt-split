@@ -76,6 +76,7 @@ export default function ReviewPage() {
             min={0}
             step={0.01}
             value={tax}
+            onFocus={e => e.target.select()}
             onChange={e => setTax(parseFloat(e.target.value) || 0)}
           />
         </div>
@@ -87,6 +88,7 @@ export default function ReviewPage() {
             min={0}
             step={0.01}
             value={tip}
+            onFocus={e => e.target.select()}
             onChange={e => setTip(parseFloat(e.target.value) || 0)}
           />
         </div>

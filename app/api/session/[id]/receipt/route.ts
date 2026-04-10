@@ -41,13 +41,13 @@ export async function POST(
     return NextResponse.json({ error: `OCR failed: ${message}` }, { status: 500 })
   }
 
-  // Split quantity > 1 items into individual claimable units
+  // Split quantity > 1 items into individual claimable units (OCR returns unit price)
   const items = parsed.items.flatMap(item => {
-    const qty = item.quantity ?? 1
+    const qty = Math.max(1, Math.round(item.quantity ?? 1))
     return Array.from({ length: qty }, () => ({
       id: nanoid(6),
       name: item.name,
-      price: item.price,
+      price: item.price, // unit price from OCR
       quantity: 1,
     }))
   })
