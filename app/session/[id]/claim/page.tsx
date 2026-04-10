@@ -1,12 +1,14 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { useSession } from '@/hooks/use-session'
 import { ClaimBoard } from '@/components/claim-board'
 import { ParticipantBadge } from '@/components/participant-badge'
 import { Button } from '@/components/ui/button'
 import { ShareBanner } from '@/components/share-banner'
+import { Claim } from '@/types/session'
+import { applyClaim } from '@/lib/session'
 
 export default function ClaimPage() {
   const { id } = useParams<{ id: string }>()
@@ -14,18 +16,33 @@ export default function ClaimPage() {
   const router = useRouter()
   const [myId, setMyId] = useState<string>('')
   const [advancing, setAdvancing] = useState(false)
+  const [optimisticClaims, setOptimisticClaims] = useState<Claim[] | null>(null)
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     const stored = localStorage.getItem(`participant:${id}`)
     if (stored) setMyId(stored)
   }, [id])
 
+  // Merge server claims back in after poll (drop optimistic override)
+  useEffect(() => {
+    if (session) setOptimisticClaims(null)
+  }, [session?.claims])
+
   const me = session?.participants.find(p => p.id === myId)
   const isHost = localStorage.getItem(`host:${id}`) === myId
 
-  const claim = async (itemId: string, fraction: number) => {
-    if (!myId) return
-    await fetch(`/api/session/${id}/claim`, {
+  // Use optimistic claims if available, otherwise fall back to server state
+  const displayClaims = optimisticClaims ?? session?.claims ?? []
+
+  const claim = (itemId: string, fraction: number) => {
+    if (!myId || !session) return
+    // Update UI instantly
+    setOptimisticClaims(prev =>
+      applyClaim(prev ?? session.claims, itemId, myId, fraction)
+    )
+    // Fire-and-forget to server
+    fetch(`/api/session/${id}/claim`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ itemId, participantId: myId, fraction }),
@@ -61,7 +78,7 @@ export default function ClaimPage() {
         <ClaimBoard
           items={session.receipt.items}
           participants={session.participants}
-          claims={session.claims}
+          claims={displayClaims}
           myParticipantId={myId}
           onClaim={claim}
         />
