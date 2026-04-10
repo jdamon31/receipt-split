@@ -41,17 +41,33 @@ export async function POST(
     return NextResponse.json({ error: `OCR failed: ${message}` }, { status: 500 })
   }
 
-  // Split into individual claimable units using line_total / qty for unit price
-  const items = parsed.items.flatMap(item => {
+  // Compute unit price per OCR line
+  const parsed_items = parsed.items.map(item => {
     const qty = Math.max(1, Math.round(item.quantity ?? 1))
     const unitPrice = Math.round((item.line_total / qty) * 100) / 100
-    return Array.from({ length: qty }, () => ({
+    return { name: item.name.trim(), qty, unitPrice }
+  })
+
+  // Consolidate items with same name + same unit price into one entry
+  const consolidated = new Map<string, { name: string; qty: number; unitPrice: number }>()
+  for (const item of parsed_items) {
+    const key = `${item.name.toLowerCase()}|${item.unitPrice.toFixed(2)}`
+    if (consolidated.has(key)) {
+      consolidated.get(key)!.qty += item.qty
+    } else {
+      consolidated.set(key, { ...item })
+    }
+  }
+
+  // Split consolidated items into individual claimable units
+  const items = Array.from(consolidated.values()).flatMap(item =>
+    Array.from({ length: item.qty }, () => ({
       id: nanoid(6),
       name: item.name,
-      price: unitPrice,
+      price: item.unitPrice,
       quantity: 1,
     }))
-  })
+  )
 
   const subtotal = parsed.subtotal ?? items.reduce((s, i) => s + i.price, 0)
 

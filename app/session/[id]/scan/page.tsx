@@ -5,6 +5,32 @@ import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { ShareBanner } from '@/components/share-banner'
 
+// Resize + compress image to max 1600px, JPEG 85% — reduces 5-10MB phone photos to ~300KB
+function compressImage(file: File): Promise<File> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const MAX = 1600
+      let { width, height } = img
+      if (width > MAX || height > MAX) {
+        if (width > height) { height = Math.round(height * MAX / width); width = MAX }
+        else { width = Math.round(width * MAX / height); height = MAX }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+      canvas.toBlob(blob => {
+        resolve(blob ? new File([blob], 'receipt.jpg', { type: 'image/jpeg' }) : file)
+      }, 'image/jpeg', 0.85)
+    }
+    img.onerror = () => resolve(file) // fall back to original on error
+    img.src = url
+  })
+}
+
 export default function ScanPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
@@ -29,8 +55,9 @@ export default function ScanPage() {
     if (!file) return
     setUploading(true)
     setError(null)
+    const compressed = await compressImage(file)
     const form = new FormData()
-    form.append('image', file)
+    form.append('image', compressed)
     const res = await fetch(`/api/session/${id}/receipt`, { method: 'POST', body: form })
     const data = await res.json()
     if (!res.ok) {
@@ -52,7 +79,6 @@ export default function ScanPage() {
 
       <ShareBanner sessionId={id} />
 
-      {/* Upload area */}
       <div
         className="border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer hover:border-primary/60 transition-colors"
         onDrop={handleDrop}
