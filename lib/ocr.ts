@@ -1,5 +1,5 @@
 import { generateText, Output } from 'ai'
-import { google } from '@ai-sdk/google'
+import { openai } from '@ai-sdk/openai'
 import { z } from 'zod'
 
 const ReceiptSchema = z.object({
@@ -17,7 +17,7 @@ export type ParsedReceipt = z.infer<typeof ReceiptSchema>
 
 export async function parseReceipt(imageData: string): Promise<ParsedReceipt> {
   const result = await generateText({
-    model: google('gemini-2.0-flash'),
+    model: openai('gpt-4o-mini'),
     output: Output.object({ schema: ReceiptSchema }),
     messages: [{
       role: 'user',
