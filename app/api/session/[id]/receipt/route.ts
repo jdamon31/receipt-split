@@ -59,17 +59,14 @@ export async function POST(
     }
   }
 
-  // Split consolidated items into individual claimable units
-  const items = Array.from(consolidated.values()).flatMap(item =>
-    Array.from({ length: item.qty }, () => ({
-      id: nanoid(6),
-      name: item.name,
-      price: item.unitPrice,
-      quantity: 1,
-    }))
-  )
+  const items = Array.from(consolidated.values()).map(item => ({
+    id: nanoid(6),
+    name: item.name,
+    price: item.unitPrice,
+    quantity: item.qty,
+  }))
 
-  const subtotal = parsed.subtotal ?? items.reduce((s, i) => s + i.price, 0)
+  const subtotal = parsed.subtotal ?? items.reduce((s, i) => s + i.price * i.quantity, 0)
 
   session.receipt = {
     imageUrl: blobUrl,

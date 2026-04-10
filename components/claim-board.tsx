@@ -32,15 +32,22 @@ export function ClaimBoard({ items, participants, claims, myParticipantId, onCla
     }).filter(Boolean)
   }
 
-  const handleTap = (itemId: string) => {
+  const handleTap = (itemId: string, qty: number) => {
     const existing = myClaimForItem(itemId)
-    if (existing) {
-      // Unclaim
-      onClaim(itemId, 0)
-    } else {
+    const unitFraction = 1 / qty
+    if (!existing || existing.fraction === 0) {
+      // Claim one unit
       const remaining = 1 - totalClaimedFraction(itemId)
-      if (remaining > 0) {
-        onClaim(itemId, remaining)
+      if (remaining >= unitFraction - 0.001) {
+        onClaim(itemId, unitFraction)
+      }
+    } else {
+      const nextFraction = existing.fraction + unitFraction
+      if (nextFraction > 1.001) {
+        // Already at max — unclaim
+        onClaim(itemId, 0)
+      } else {
+        onClaim(itemId, Math.min(nextFraction, 1))
       }
     }
   }
@@ -55,8 +62,9 @@ export function ClaimBoard({ items, participants, claims, myParticipantId, onCla
       {items.map(item => {
         const myClaim = myClaimForItem(item.id)
         const colors = claimerColors(item.id)
-        const isClaimed = !!myClaim
+        const isClaimed = !!myClaim && myClaim.fraction > 0
         const totalClaimed = totalClaimedFraction(item.id)
+        const isMultiUnit = item.quantity > 1
 
         return (
           <div
@@ -69,7 +77,7 @@ export function ClaimBoard({ items, participants, claims, myParticipantId, onCla
                   : 'border-border hover:border-primary/40 hover:shadow-sm'
               }`}
             style={isClaimed ? { borderColor: participants.find(p => p.id === myParticipantId)?.color } : {}}
-            onClick={() => splitting !== item.id && handleTap(item.id)}
+            onClick={() => splitting !== item.id && handleTap(item.id, item.quantity)}
           >
             {/* Colored fraction bar */}
             {colors.length > 0 && (
@@ -105,7 +113,10 @@ export function ClaimBoard({ items, participants, claims, myParticipantId, onCla
                     className="text-xs px-2 py-0.5 rounded-full text-white font-medium"
                     style={{ backgroundColor: c!.color }}
                   >
-                    {c!.name}{c!.fraction < 0.99 ? ` (${Math.round(c!.fraction * 100)}%)` : ''}
+                    {c!.name}{isMultiUnit
+                    ? ` ×${Math.round(c!.fraction * item.quantity)}`
+                    : c!.fraction < 0.99 ? ` (${Math.round(c!.fraction * 100)}%)` : ''
+                  }
                   </span>
                 ))}
               </div>
@@ -131,13 +142,17 @@ export function ClaimBoard({ items, participants, claims, myParticipantId, onCla
                   Cancel
                 </button>
               </div>
-            ) : totalClaimed < 0.99 && !isClaimed ? (
+            ) : totalClaimed < 0.99 && !isClaimed && !isMultiUnit ? (
               <button
                 className="mt-2 text-xs text-muted-foreground underline underline-offset-2"
                 onClick={e => { e.stopPropagation(); setSplitting(item.id) }}
               >
                 Split item
               </button>
+            ) : isMultiUnit && totalClaimed < 0.99 ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                Tap to claim a unit ({Math.round((1 - totalClaimed) * item.quantity)} left)
+              </p>
             ) : null}
           </div>
         )
