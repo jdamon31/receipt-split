@@ -1,4 +1,13 @@
-import { Session, ParticipantBreakdown, Claim } from '@/types/session'
+import { Session, ParticipantBreakdown, ReceiptItem } from '@/types/session'
+
+export function getUnclaimedItems(session: Session): ReceiptItem[] {
+  return session.receipt.items.filter(item => {
+    const totalClaimed = session.claims
+      .filter(c => c.itemId === item.id)
+      .reduce((sum, c) => sum + c.fraction, 0)
+    return totalClaimed < 0.99
+  })
+}
 
 export function calculateBreakdowns(session: Session): ParticipantBreakdown[] {
   const { receipt, participants, claims } = session
@@ -6,8 +15,8 @@ export function calculateBreakdowns(session: Session): ParticipantBreakdown[] {
 
   if (participants.length === 0) return []
 
+  // Only count claimed items — unclaimed are handled separately
   return participants.map(participant => {
-    // Sum claimed items for this participant
     let itemsTotal = 0
     for (const item of items) {
       const claim = claims.find(
@@ -18,22 +27,16 @@ export function calculateBreakdowns(session: Session): ParticipantBreakdown[] {
       }
     }
 
-    // Handle unclaimed items — split equally
-    const unclaimedItems = items.filter(item => {
-      const totalClaimed = claims
-        .filter(c => c.itemId === item.id)
-        .reduce((sum, c) => sum + c.fraction, 0)
-      return totalClaimed < 0.99
-    })
-    for (const item of unclaimedItems) {
-      const totalClaimed = claims
-        .filter(c => c.itemId === item.id)
-        .reduce((sum, c) => sum + c.fraction, 0)
-      const unclaimed = 1 - totalClaimed
-      itemsTotal += (item.price * item.quantity * unclaimed) / participants.length
-    }
+    // Base tax/tip share on claimed subtotal only
+    const claimedSubtotal = participants.reduce((sum, p) => {
+      for (const item of items) {
+        const c = claims.find(cl => cl.itemId === item.id && cl.participantId === p.id)
+        if (c) sum += item.price * item.quantity * c.fraction
+      }
+      return sum
+    }, 0)
 
-    const subtotalShare = subtotal > 0 ? itemsTotal / subtotal : 1 / participants.length
+    const subtotalShare = claimedSubtotal > 0 ? itemsTotal / claimedSubtotal : subtotal > 0 ? itemsTotal / subtotal : 0
     const taxShare = subtotalShare * tax
     const tipShare = subtotalShare * tip
     const total = itemsTotal + taxShare + tipShare

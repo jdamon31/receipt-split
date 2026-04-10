@@ -72,11 +72,6 @@ export default function ClaimPage() {
         </div>
       )}
 
-      {/* Invite more */}
-      <div className="pt-2">
-        <ShareBanner sessionId={id} />
-      </div>
-
       {isHost && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur border-t">
           <div className="max-w-md mx-auto">

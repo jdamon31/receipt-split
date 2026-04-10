@@ -41,13 +41,16 @@ export async function POST(
     return NextResponse.json({ error: `OCR failed: ${message}` }, { status: 500 })
   }
 
-  // Build receipt items
-  const items = parsed.items.map(item => ({
-    id: nanoid(6),
-    name: item.name,
-    price: item.price,
-    quantity: item.quantity ?? 1,
-  }))
+  // Split quantity > 1 items into individual claimable units
+  const items = parsed.items.flatMap(item => {
+    const qty = item.quantity ?? 1
+    return Array.from({ length: qty }, () => ({
+      id: nanoid(6),
+      name: item.name,
+      price: item.price,
+      quantity: 1,
+    }))
+  })
 
   const subtotal = parsed.subtotal ?? items.reduce((s, i) => s + i.price * i.quantity, 0)
 

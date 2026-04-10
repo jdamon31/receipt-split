@@ -3,13 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { useSession } from '@/hooks/use-session'
-import { calculateBreakdowns } from '@/lib/calculate'
+import { calculateBreakdowns, getUnclaimedItems } from '@/lib/calculate'
 import { BreakdownCard } from '@/components/breakdown-card'
-import { ParticipantBreakdown } from '@/types/session'
+import { UnclaimedItems } from '@/components/unclaimed-items'
 
 export default function BreakdownPage() {
   const { id } = useParams<{ id: string }>()
-  const { session } = useSession(id)
+  const { session, refresh } = useSession(id)
   const [myId, setMyId] = useState('')
 
   useEffect(() => {
@@ -19,9 +19,10 @@ export default function BreakdownPage() {
 
   if (!session) return <div className="p-6 text-muted-foreground">Loading…</div>
 
+  const isHost = myId === session.hostId
   const breakdowns = calculateBreakdowns(session)
+  const unclaimed = getUnclaimedItems(session)
   const host = session.participants.find(p => p.id === session.hostId) ?? session.participants[0]
-
   const myBreakdown = breakdowns.find(b => b.participant.id === myId)
   const others = breakdowns.filter(b => b.participant.id !== myId)
 
@@ -34,15 +35,26 @@ export default function BreakdownPage() {
         </p>
       </div>
 
+      {/* Unclaimed items — host can assign */}
+      {unclaimed.length > 0 && isHost && (
+        <UnclaimedItems
+          sessionId={id}
+          items={unclaimed}
+          participants={session.participants}
+          onAssigned={refresh}
+        />
+      )}
+      {unclaimed.length > 0 && !isHost && (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
+          ⏳ {unclaimed.length} item{unclaimed.length !== 1 ? 's' : ''} still unclaimed — the host is assigning them.
+        </div>
+      )}
+
       {/* My card first */}
       {myBreakdown && (
         <div>
           <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">You</p>
-          <BreakdownCard
-            breakdown={myBreakdown}
-            host={host}
-            isMe={true}
-          />
+          <BreakdownCard breakdown={myBreakdown} host={host} isMe={true} />
         </div>
       )}
 
@@ -51,12 +63,7 @@ export default function BreakdownPage() {
         <div className="space-y-3">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Everyone else</p>
           {others.map(b => (
-            <BreakdownCard
-              key={b.participant.id}
-              breakdown={b}
-              host={host}
-              isMe={false}
-            />
+            <BreakdownCard key={b.participant.id} breakdown={b} host={host} isMe={false} />
           ))}
         </div>
       )}
