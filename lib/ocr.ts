@@ -17,7 +17,7 @@ export type ParsedReceipt = z.infer<typeof ReceiptSchema>
 
 export async function parseReceipt(imageData: string): Promise<ParsedReceipt> {
   const result = await generateText({
-    model: google('gemini-1.5-flash'),
+    model: google('gemini-2.0-flash-exp'),
     output: Output.object({ schema: ReceiptSchema }),
     messages: [{
       role: 'user',
