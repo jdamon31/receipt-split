@@ -1,4 +1,4 @@
-import { Session, ParticipantBreakdown, ReceiptItem } from '@/types/session'
+import { Session, ParticipantBreakdown, ReceiptItem, ClaimedLineItem } from '@/types/session'
 
 export function getUnclaimedItems(session: Session): ReceiptItem[] {
   return session.receipt.items.filter(item => {
@@ -15,26 +15,30 @@ export function calculateBreakdowns(session: Session): ParticipantBreakdown[] {
 
   if (participants.length === 0) return []
 
+  // Precompute total claimed subtotal across all participants (for proportional tax/tip)
+  const claimedSubtotal = participants.reduce((sum, p) => {
+    for (const item of items) {
+      const c = claims.find(cl => cl.itemId === item.id && cl.participantId === p.id)
+      if (c) sum += item.price * item.quantity * c.fraction
+    }
+    return sum
+  }, 0)
+
   // Only count claimed items — unclaimed are handled separately
   return participants.map(participant => {
+    const claimedItems: ClaimedLineItem[] = []
     let itemsTotal = 0
+
     for (const item of items) {
       const claim = claims.find(
         c => c.itemId === item.id && c.participantId === participant.id
       )
-      if (claim) {
-        itemsTotal += item.price * item.quantity * claim.fraction
+      if (claim && claim.fraction > 0) {
+        const lineSubtotal = item.price * item.quantity * claim.fraction
+        itemsTotal += lineSubtotal
+        claimedItems.push({ item, fraction: claim.fraction, subtotal: lineSubtotal })
       }
     }
-
-    // Base tax/tip share on claimed subtotal only
-    const claimedSubtotal = participants.reduce((sum, p) => {
-      for (const item of items) {
-        const c = claims.find(cl => cl.itemId === item.id && cl.participantId === p.id)
-        if (c) sum += item.price * item.quantity * c.fraction
-      }
-      return sum
-    }, 0)
 
     const subtotalShare = claimedSubtotal > 0 ? itemsTotal / claimedSubtotal : subtotal > 0 ? itemsTotal / subtotal : 0
     const taxShare = subtotalShare * tax
@@ -43,6 +47,7 @@ export function calculateBreakdowns(session: Session): ParticipantBreakdown[] {
 
     return {
       participant,
+      claimedItems,
       itemsTotal: round(itemsTotal),
       taxShare: round(taxShare),
       tipShare: round(tipShare),

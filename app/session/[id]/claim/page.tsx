@@ -38,6 +38,13 @@ export default function ClaimPage() {
     if (session) setOptimisticClaims(null)
   }, [session?.claims])
 
+  // Auto-redirect guests (and host) when the session advances to settled
+  useEffect(() => {
+    if (session?.status === 'settled') {
+      router.push(`/session/${id}/breakdown`)
+    }
+  }, [session?.status])
+
   const me = session?.participants.find(p => p.id === myId)
   const originalHostToken = typeof window !== 'undefined' ? localStorage.getItem(`host:${id}`) ?? '' : ''
   const isHost = myId === session?.hostId || myId === originalHostToken

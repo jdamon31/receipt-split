@@ -9,10 +9,11 @@ interface Props {
   breakdown: ParticipantBreakdown
   host: Participant
   isMe: boolean
+  showItems?: boolean
 }
 
-export function BreakdownCard({ breakdown, host, isMe }: Props) {
-  const { participant, itemsTotal, taxShare, tipShare, total } = breakdown
+export function BreakdownCard({ breakdown, host, isMe, showItems = false }: Props) {
+  const { participant, claimedItems, itemsTotal, taxShare, tipShare, total } = breakdown
 
   return (
     <Card className={`${isMe ? 'ring-2 ring-offset-2' : ''}`} style={isMe ? { '--tw-ring-color': participant.color } as React.CSSProperties : {}}>
@@ -27,6 +28,29 @@ export function BreakdownCard({ breakdown, host, isMe }: Props) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 text-sm">
+
+        {/* Itemized list — only shown for "you" */}
+        {showItems && claimedItems.length > 0 && (
+          <>
+            <div className="space-y-1">
+              {claimedItems.map(({ item, fraction, subtotal }) => (
+                <div key={item.id} className="flex justify-between text-muted-foreground">
+                  <span className="truncate pr-2">
+                    {item.name}
+                    {item.quantity > 1 && fraction >= 0.99
+                      ? ` ×${item.quantity}`
+                      : fraction < 0.99
+                        ? ` (${Math.round(fraction * 100)}%)`
+                        : ''}
+                  </span>
+                  <span className="tabular-nums shrink-0">${subtotal.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+            <Separator />
+          </>
+        )}
+
         <div className="flex justify-between text-muted-foreground">
           <span>Items</span>
           <span>${itemsTotal.toFixed(2)}</span>

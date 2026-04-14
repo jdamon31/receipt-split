@@ -42,8 +42,15 @@ export interface Claim {
   fraction: number
 }
 
+export interface ClaimedLineItem {
+  item: ReceiptItem
+  fraction: number    // how much of the item this person claimed
+  subtotal: number    // price × quantity × fraction
+}
+
 export interface ParticipantBreakdown {
   participant: Participant
+  claimedItems: ClaimedLineItem[]
   itemsTotal: number
   taxShare: number
   tipShare: number
