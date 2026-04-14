@@ -41,8 +41,14 @@ export async function POST(
     return NextResponse.json({ error: `OCR failed: ${message}` }, { status: 500 })
   }
 
+  // Drop zero/negative-price lines (discounts, voids, comps, $0 modifiers)
+  const NON_ITEM_PATTERN = /\b(tax|gst|vat|hst|pst|gratuity|tip|service\s+charge|delivery|surcharge|subtotal|total|discount|promo|coupon|fee)\b/i
+  const validItems = parsed.items.filter(item =>
+    item.line_total > 0.005 && !NON_ITEM_PATTERN.test(item.name)
+  )
+
   // Compute unit price per OCR line
-  const parsed_items = parsed.items.map(item => {
+  const parsed_items = validItems.map(item => {
     const qty = Math.max(1, Math.round(item.quantity ?? 1))
     const unitPrice = Math.round((item.line_total / qty) * 100) / 100
     return { name: item.name.trim(), qty, unitPrice }
